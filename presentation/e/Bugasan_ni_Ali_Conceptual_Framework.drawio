@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Conceptual Framework" id="bugasan-ipo">
+    <mxGraphModel dx="2400" dy="1350" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="2400" pageHeight="1350">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" vertex="1" value="Conceptual Framework — Bugasan ni Ali" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=60;fontColor=#1D2621;fontStyle=1;">
+          <mxGeometry as="geometry" x="95" y="160" width="2200" height="80" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" vertex="1" value="Input–Process–Output (IPO) model for rice ordering and inventory management" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=30;fontColor=#4F5852;fontStyle=0;">
+          <mxGeometry as="geometry" x="95" y="250" width="2200" height="45" />
+        </mxCell>
+        <mxCell id="input" parent="1" vertex="1" value="" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B7CCBE;strokeWidth=3;">
+          <mxGeometry as="geometry" x="95" y="345" width="610" height="645" />
+        </mxCell>
+        <mxCell id="inputhead" parent="1" vertex="1" value="INPUT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1E6B47;strokeColor=#1E6B47;fontColor=#FFFFFF;fontFamily=Arial;fontSize=34;fontStyle=1;">
+          <mxGeometry as="geometry" x="95" y="345" width="610" height="90" />
+        </mxCell>
+        <mxCell id="input0" parent="1" vertex="1" value="&lt;b&gt;Customer information&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Account, contact, and delivery details&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="149" y="469" width="535" height="78" />
+        </mxCell>
+        <mxCell id="input1" parent="1" vertex="1" value="&lt;b&gt;Product information&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Rice varieties, prices, and stock&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="149" y="571" width="535" height="78" />
+        </mxCell>
+        <mxCell id="input2" parent="1" vertex="1" value="&lt;b&gt;Order details&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Quantities, fulfillment, and schedule&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="149" y="673" width="535" height="78" />
+        </mxCell>
+        <mxCell id="input3" parent="1" vertex="1" value="&lt;b&gt;Supplier information&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Contacts and purchase order details&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="149" y="775" width="535" height="78" />
+        </mxCell>
+        <mxCell id="input4" parent="1" vertex="1" value="&lt;b&gt;Store settings&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Discount rules and delivery fees&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="149" y="877" width="535" height="78" />
+        </mxCell>
+        <mxCell id="process" parent="1" vertex="1" value="" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B7CCBE;strokeWidth=3;">
+          <mxGeometry as="geometry" x="895" y="345" width="610" height="645" />
+        </mxCell>
+        <mxCell id="processhead" parent="1" vertex="1" value="PROCESS" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1E6B47;strokeColor=#1E6B47;fontColor=#FFFFFF;fontFamily=Arial;fontSize=34;fontStyle=1;">
+          <mxGeometry as="geometry" x="895" y="345" width="610" height="90" />
+        </mxCell>
+        <mxCell id="process0" parent="1" vertex="1" value="&lt;b&gt;Validate information&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Check user access and available stock&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="949" y="469" width="535" height="78" />
+        </mxCell>
+        <mxCell id="process1" parent="1" vertex="1" value="&lt;b&gt;Calculate order totals&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Apply prices, discounts, and fees&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="949" y="571" width="535" height="78" />
+        </mxCell>
+        <mxCell id="process2" parent="1" vertex="1" value="&lt;b&gt;Record transactions&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Save orders, items, and payments&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="949" y="673" width="535" height="78" />
+        </mxCell>
+        <mxCell id="process3" parent="1" vertex="1" value="&lt;b&gt;Manage fulfillment&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Update delivery or pickup status&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="949" y="775" width="535" height="78" />
+        </mxCell>
+        <mxCell id="process4" parent="1" vertex="1" value="&lt;b&gt;Update inventory&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Record sales, returns, and restocks&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="949" y="877" width="535" height="78" />
+        </mxCell>
+        <mxCell id="output" parent="1" vertex="1" value="" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B7CCBE;strokeWidth=3;">
+          <mxGeometry as="geometry" x="1695" y="345" width="610" height="645" />
+        </mxCell>
+        <mxCell id="outputhead" parent="1" vertex="1" value="OUTPUT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1E6B47;strokeColor=#1E6B47;fontColor=#FFFFFF;fontFamily=Arial;fontSize=34;fontStyle=1;">
+          <mxGeometry as="geometry" x="1695" y="345" width="610" height="90" />
+        </mxCell>
+        <mxCell id="output0" parent="1" vertex="1" value="&lt;b&gt;Orders and receipts&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Recorded sales and itemized totals&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="1749" y="469" width="535" height="78" />
+        </mxCell>
+        <mxCell id="output1" parent="1" vertex="1" value="&lt;b&gt;Updated inventory&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Available stock per rice variety&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="1749" y="571" width="535" height="78" />
+        </mxCell>
+        <mxCell id="output2" parent="1" vertex="1" value="&lt;b&gt;Order status updates&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Progress of delivery or pickup&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="1749" y="673" width="535" height="78" />
+        </mxCell>
+        <mxCell id="output3" parent="1" vertex="1" value="&lt;b&gt;Low-stock alerts&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Products needing replenishment&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="1749" y="775" width="535" height="78" />
+        </mxCell>
+        <mxCell id="output4" parent="1" vertex="1" value="&lt;b&gt;Management reports&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:25px;color:#4F5852&quot;&gt;Sales, inventory, and supplier purchases&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=29;fontColor=#1D2621;fontStyle=0;">
+          <mxGeometry as="geometry" x="1749" y="877" width="535" height="78" />
+        </mxCell>
+        <mxCell id="in-process" parent="1" edge="1" source="input" target="process" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1E6B47;strokeWidth=4;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="process-out" parent="1" edge="1" source="process" target="output" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1E6B47;strokeWidth=4;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="feedback" parent="1" edge="1" source="output" target="input" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1E6B47;strokeWidth=4;exitX=0.5;exitY=1;entryX=0.5;entryY=1;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="2000" y="1125" />
+              <mxPoint x="400" y="1125" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="feedback-label" parent="1" vertex="1" value="&lt;b&gt;FEEDBACK&lt;/b&gt;&lt;br&gt;Reports and alerts guide restocking and pricing decisions." style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#E3F1E9;strokeColor=#B7CCBE;fontFamily=Arial;fontSize=27;fontColor=#1E6B47;">
+          <mxGeometry as="geometry" x="655" y="1065" width="1090" height="122" />
+        </mxCell>
+        <mxCell id="footer" parent="1" vertex="1" value="Customers and store administrator • Mobile app + backend API + SQLite database" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=none;fillColor=none;fontFamily=Arial;fontSize=26;fontColor=#4F5852;fontStyle=0;">
+          <mxGeometry as="geometry" x="330" y="1250" width="1900" height="50" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
