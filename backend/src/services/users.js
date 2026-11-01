@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { db, updateRow } from '../db/index.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { newId, nowIso } from '../lib/ids.js';
+import { forgetUserDevices, notifyAdmins, notifyUser } from './push.js';
+import * as notification from '../lib/notifications.js';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -91,6 +93,9 @@ export async function changePassword(userId, currentPassword, newPassword) {
     await hashPassword(newPassword),
     userId
   );
+  // Those devices are logged out now, so they must stop receiving this account's notifications.
+  // The phone that changed the password registers again on its next start.
+  forgetUserDevices(userId);
   return findAccountById(userId);
 }
 
@@ -100,7 +105,9 @@ export function applyForWholesale(userId, businessName) {
   db.prepare(
     "UPDATE users SET account_type = 'wholesale', wholesale_status = 'pending', business_name = ? WHERE id = ?"
   ).run(businessName, userId);
-  return getUser(userId);
+  const applicant = getUser(userId);
+  notifyAdmins(notification.wholesaleApplication(applicant));
+  return applicant;
 }
 
 // ---------- Admin: customers ----------
@@ -137,11 +144,21 @@ export function getCustomer(id) {
 // 'approved' gives wholesale prices; null declines the application or removes access.
 export function setWholesaleStatus(userId, wholesaleStatus) {
   const user = getCustomer(userId);
+  const wasPending = user.wholesaleStatus === 'pending';
   if (wholesaleStatus === 'approved') {
     if (!user.businessName) throw badRequest('This customer has not applied for a wholesale account.');
     db.prepare("UPDATE users SET account_type = 'wholesale', wholesale_status = 'approved' WHERE id = ?").run(userId);
   } else {
     db.prepare("UPDATE users SET account_type = 'retail', wholesale_status = NULL WHERE id = ?").run(userId);
   }
-  return getUser(userId);
+
+  const updated = getUser(userId);
+  if (wholesaleStatus === 'approved') {
+    if (user.wholesaleStatus !== 'approved') notifyUser(userId, notification.wholesaleApproved(updated));
+  } else if (wasPending) {
+    // Declining an application is worth telling the customer; quietly removing an old
+    // reseller's access is a store matter, so nothing is sent for that.
+    notifyUser(userId, notification.wholesaleDeclined());
+  }
+  return updated;
 }

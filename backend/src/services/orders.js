@@ -8,6 +8,8 @@ import { ORDER_STATUS, PAYMENT_METHODS, isActive, nextStatus } from '../lib/orde
 import { addMovement, changeStock, getProduct } from './products.js';
 import { listRules } from './pricingRules.js';
 import { deliverySettings, getSettings } from './settings.js';
+import { notifyAdmins, notifyUser } from './push.js';
+import * as notification from '../lib/notifications.js';
 
 function toItem(row) {
   return {
@@ -160,7 +162,11 @@ export function quoteOrder(user, { items, fulfillment }) {
 // ---------- Placing an order ----------
 
 export function placeOrder(user, input) {
-  return transaction(() => {
+  // Varieties that dropped to their reorder level because of this order, so the store is
+  // warned once (not on every later order while the stock stays low).
+  const ranLow = [];
+
+  const order = transaction(() => {
     const totals = priceCart(user, input.items, input.fulfillment);
     const { store } = getSettings();
     const orderNo = db.prepare('SELECT COALESCE(MAX(order_no), 10000) + 1 FROM orders').pluck().get();
@@ -211,12 +217,20 @@ export function placeOrder(user, input) {
 
     // Automatic stock deduction after the sale.
     for (const [productId, kg] of kgByProduct(totals.lines)) {
+      const before = getProduct(productId).stockKg;
       changeStock(productId, -kg);
       addMovement({ productId, type: 'sale', kg: -kg, ref: order.id, note: order.customerName, at: createdAt });
+      const after = getProduct(productId);
+      if (after.reorderLevel > 0 && before > after.reorderLevel && after.stockKg <= after.reorderLevel) ranLow.push(after);
     }
 
     return requireOrder(order.id);
   });
+
+  // Only once the order is safely saved.
+  notifyAdmins(notification.newOrder(order));
+  ranLow.forEach((product) => notifyAdmins(notification.lowStock(product)));
+  return order;
 }
 
 // ---------- Updating an order ----------
@@ -224,7 +238,7 @@ export function placeOrder(user, input) {
 // Customers may cancel while the order is still pending. The store may cancel any active
 // order that has not left with the rider yet. The rice goes back to inventory.
 export function cancelOrder(id, { byStore, reason }) {
-  return transaction(() => {
+  const order = transaction(() => {
     const order = requireOrder(id);
     if (byStore ? !isActive(order) || order.status === 'out_for_delivery' : order.status !== 'pending') {
       throw conflict(
@@ -246,12 +260,17 @@ export function cancelOrder(id, { byStore, reason }) {
     });
     return requireOrder(id);
   });
+
+  // The store tells the customer; a customer cancelling tells the store.
+  if (byStore) notifyUser(order.customerId, notification.orderCancelledByStore(order, reason));
+  else notifyAdmins(notification.orderCancelledByCustomer(order));
+  return order;
 }
 
 // Moves the order to its next step: Pending → Confirmed → Preparing →
 // Out for Delivery / Ready for Pickup → Delivered / Picked Up.
 export function advanceOrder(id) {
-  return transaction(() => {
+  const order = transaction(() => {
     const order = requireOrder(id);
     const status = nextStatus(order);
     if (!status) throw conflict(`Order ${id} is already ${ORDER_STATUS[order.status]}.`);
@@ -267,6 +286,9 @@ export function advanceOrder(id) {
     });
     return requireOrder(id);
   });
+
+  notifyUser(order.customerId, notification.orderStatusChanged(order));
+  return order;
 }
 
 export function setRider(id, rider) {
@@ -281,6 +303,10 @@ export function setRider(id, rider) {
 export function markPaid(id) {
   const order = requireOrder(id);
   if (order.status === 'cancelled') throw conflict(`Order ${id} was cancelled.`);
-  if (order.paymentStatus !== 'paid') saveOrder(id, { paymentStatus: 'paid' });
-  return requireOrder(id);
+  const wasUnpaid = order.paymentStatus !== 'paid';
+  if (wasUnpaid) saveOrder(id, { paymentStatus: 'paid' });
+  const updated = requireOrder(id);
+  // Only the first time, so re-tapping "Mark as paid" does not notify again.
+  if (wasUnpaid) notifyUser(updated.customerId, notification.paymentVerified(updated));
+  return updated;
 }

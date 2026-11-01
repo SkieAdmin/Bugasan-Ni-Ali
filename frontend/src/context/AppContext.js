@@ -11,6 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 import { ApiError, api, checkHealth, getAuthToken, onConnectionChange, onUnauthorized, setAuthToken } from '../api/client';
 import { clearSession, loadSession, saveSession } from '../api/session';
+import { forgetToken, getPushToken, permissionStatus, saveToken, sendTestNotification, unsupportedReason } from '../api/push';
 import { UNITS } from '../utils/pricing';
 
 const AppContext = createContext(null);
@@ -93,6 +94,9 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState(null);
   const [connection, setConnection] = useState('checking'); // 'checking' | 'online' | 'offline'
   const [refreshing, setRefreshing] = useState(false);
+  // Push notifications on this phone: 'checking' | 'on' | 'off' | 'unsupported'.
+  const [push, setPush] = useState({ status: 'checking', token: null, reason: null });
+  const pushToken = useRef(null);
   // Goes up whenever data changes, so screens that load their own data (reports) reload too.
   const [dataVersion, setDataVersion] = useState(0);
 
@@ -130,12 +134,45 @@ export function AppProvider({ children }) {
     [update, showToast]
   );
 
-  const logout = useCallback(() => {
-    setAuthToken(null);
-    clearSession();
-    // Keep the public store info for the login screen.
-    update((s) => ({ ...INITIAL, ready: true, store: s.store, categories: s.categories, settings: s.settings }));
-  }, [update]);
+  // Gets this phone's Expo push token and hands it to the backend, so the store's
+  // notifications reach whoever is logged in here. `ask` shows the permission prompt;
+  // it is only passed when the user just logged in or tapped "Turn on notifications".
+  const syncPush = useCallback(async ({ ask = false } = {}) => {
+    const result = await getPushToken({ ask });
+    if (!result.ok) {
+      const status = result.status === 'unsupported' ? 'unsupported' : 'off';
+      setPush({ status, token: null, reason: result.reason });
+      return { ok: false, error: result.reason };
+    }
+    try {
+      await saveToken(result.token);
+      pushToken.current = result.token;
+      setPush({ status: 'on', token: result.token, reason: null });
+      return { ok: true, token: result.token };
+    } catch (err) {
+      // Logged in but the token did not reach the server: try again on the next app start.
+      setPush({ status: 'off', token: null, reason: err.message });
+      return { ok: false, error: err.message };
+    }
+  }, []);
+
+  // `unregister: false` when the session has already expired — the server would only answer 401.
+  const logout = useCallback(
+    ({ unregister = true } = {}) => {
+      const token = pushToken.current;
+      pushToken.current = null;
+      setPush({ status: 'off', token: null, reason: null });
+      // Sent while the login token is still set; this phone must stop getting this
+      // account's notifications before someone else logs in on it.
+      if (unregister && token) forgetToken(token).catch(() => {});
+
+      setAuthToken(null);
+      clearSession();
+      // Keep the public store info for the login screen.
+      update((s) => ({ ...INITIAL, ready: true, store: s.store, categories: s.categories, settings: s.settings }));
+    },
+    [update]
+  );
 
   const recheckConnection = useCallback(() => {
     setConnection('checking');
@@ -147,7 +184,7 @@ export function AppProvider({ children }) {
     onConnectionChange(setConnection);
     onUnauthorized(() => {
       if (!stateRef.current.currentUser) return;
-      logout();
+      logout({ unregister: false });
       showToast('Your session has expired. Please log in again.', 'error');
     });
   }, [logout, showToast]);
@@ -159,16 +196,21 @@ export function AppProvider({ children }) {
       .get('/store')
       .then((s) => update((st) => ({ ...st, ...fromStore(s) })))
       .catch(() => {});
-    loadSession().then((session) => {
+    loadSession().then(async (session) => {
       if (session?.token && session.user) {
         setAuthToken(session.token);
         update({ currentUser: session.user, ready: true });
         refresh({ quiet: true });
+        // Expo can hand out a new token at any time, so it is sent again on every start.
+        // Never asks here: the permission prompt belongs to the login screen.
+        if ((await permissionStatus()) === 'granted') syncPush();
+        else setPush({ status: unsupportedReason() ? 'unsupported' : 'off', token: null, reason: unsupportedReason() });
       } else {
         update({ ready: true });
+        setPush({ status: unsupportedReason() ? 'unsupported' : 'off', token: null, reason: unsupportedReason() });
       }
     });
-  }, [update, refresh]);
+  }, [update, refresh, syncPush]);
 
   // Keep checking while the app is open; catch up when it comes back to the foreground.
   useEffect(() => {
@@ -255,6 +297,9 @@ export function AppProvider({ children }) {
       const me = data?.currentUser || user;
       update((s) => ({ ...s, ...data, currentUser: me, cart: [] }));
       saveSession({ token, user: me });
+      // Logging in is the moment to ask about notifications. It runs on its own: the
+      // permission prompt must not hold up the first screen, and saying no is fine.
+      syncPush({ ask: true });
       return { user: me };
     };
 
@@ -265,7 +310,7 @@ export function AppProvider({ children }) {
         .reduce((sum, c) => sum + UNITS[c.unit].kg * c.qty, 0);
 
     return {
-      refresh: () => refresh(),
+      refresh: (options) => refresh(options),
 
       // ---------- Auth ----------
       login: (email, password) =>
@@ -289,6 +334,23 @@ export function AppProvider({ children }) {
         ),
 
       logout,
+
+      // ---------- Push notifications ----------
+
+      // "Turn on notifications" in the app: asks again and re-sends the token.
+      enablePush: () => syncPush({ ask: true }),
+
+      disablePush: () =>
+        call(async () => {
+          const token = pushToken.current;
+          if (token) await forgetToken(token);
+          pushToken.current = null;
+          setPush({ status: 'off', token: null, reason: null });
+          return {};
+        }),
+
+      // Asks the server to send one notification to this account's phones.
+      sendTestPush: () => call(async () => ({ sent: (await sendTestNotification()).sent })),
 
       // ---------- Profile ----------
       updateProfile: (changes) => call(async () => setMe((await api.patch('/me', changes)).user)),
@@ -477,7 +539,7 @@ export function AppProvider({ children }) {
           return { settings };
         }),
     };
-  }, [update, showToast, refresh, logout]);
+  }, [update, showToast, refresh, logout, syncPush]);
 
   const hideToast = useCallback(() => setToast(null), []);
 
@@ -493,6 +555,7 @@ export function AppProvider({ children }) {
     recheckConnection,
     refreshing,
     dataVersion,
+    push,
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

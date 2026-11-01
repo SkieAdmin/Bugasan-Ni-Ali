@@ -61,6 +61,10 @@ Logged-in requests send `Authorization: Bearer <token>`.
 | `GET /api/me` · `PATCH /api/me` | Own account; change `name`, `phone`, `address` |
 | `POST /api/me/password` | `{ currentPassword, newPassword }` → new token (old ones stop working) |
 | `POST /api/me/wholesale-application` | `{ businessName }` |
+| `GET /api/me/devices` | The phones this account gets notifications on |
+| `POST /api/me/devices` | `{ token, platform, deviceName }` — the app's Expo push token, saved after login |
+| `DELETE /api/me/devices/:token` | Stop notifications on this phone (sent on logout) |
+| `POST /api/me/devices/test` | Send a test notification → `{ sent: <phones reached> }` |
 | `GET /api/products` · `GET /api/products/:id` | Catalog (customers don't see cost prices or inactive varieties) |
 | `GET /api/pricing-rules` | Discount rules (customers get the active ones) |
 | `GET /api/orders` | Customers: their own orders. Admin: all (`?status=&customerId=&limit=&offset=`) |
@@ -89,6 +93,54 @@ Logged-in requests send `Authorization: Bearer <token>`.
 | `GET /api/reports/dashboard` | Today's sales, pending counts, stock alerts, last 7 days |
 | `GET /api/reports/{sales,inventory,best-sellers,channels,supplier-purchases}?days=30` | Reports |
 | `GET /api/reports/share?days=30` | Plain-text summary for sharing |
+
+## Push notifications
+
+Notifications go out through **Expo's push service**, so the API needs no Firebase or Apple key
+of its own — only the app does (see below). The app sends its Expo push token to
+`POST /api/me/devices` after logging in and deletes it again on logout, so notifications always
+follow whoever is logged in on that phone. A token is the primary key, so logging in as someone
+else on the same phone moves it instead of leaving the old account subscribed.
+
+Sending is best effort and never blocks a request: if Expo cannot be reached, the order is still
+placed and the failure is only logged. Tokens Expo reports as uninstalled are deleted
+automatically, and changing a password forgets every device on that account.
+
+| When | Who is told | What it says |
+|---|---|---|
+| A customer places an order | Store admin | `New order · ₱1,250.00` |
+| Order moves to Confirmed / Preparing / Out for Delivery / Ready for Pickup / Delivered / Picked Up | That customer | The new step, with the rider's name when there is one |
+| The store cancels an order | That customer | The reason, if one was given |
+| A customer cancels their own order | Store admin | Which order, and that the rice is back in stock |
+| A digital payment is verified | That customer | `Payment received` (once — re-tapping sends nothing) |
+| A customer applies for wholesale | Store admin | The business name |
+| An application is approved or declined | That customer | The decision |
+| A sale drops a variety to its reorder level | Store admin | Which variety, and how much is left |
+
+Tapping a notification opens the order (or the wholesale / inventory screen) it is about.
+
+Settings live in `.env`: `PUSH_ENABLED=false` turns the whole thing off, and `EXPO_ACCESS_TOKEN`
+is only needed if you switch on "enhanced security for push" in your Expo account.
+
+### What the app needs before notifications arrive
+
+Expo Go cannot receive push notifications on Android, so the store's phone needs a real build:
+
+```bash
+cd frontend
+npx eas init                     # once: writes extra.eas.projectId into app.json
+npx expo prebuild --platform android
+npx expo run:android             # a development build, or `eas build` for a release one
+```
+
+Android delivery goes through Firebase, so the project also needs a Firebase Android app with
+the package name `uk.ccshub.perlas.bugasanniali`: download its `google-services.json` into
+`frontend/`, point `android.googleServicesFile` at it in `app.json`, and upload the FCM V1
+service-account key with `eas credentials`. Until that is done the app simply reports that this
+phone cannot receive notifications — nothing else breaks.
+
+In the app, **Profile → Notifications** (customers) and **More → Notifications** (admin) show
+whether this phone is registered, switch it on or off, and send a test notification.
 
 ## Deploy to perlas.ccshub.uk
 
@@ -128,10 +180,10 @@ backend/
 │   ├── app.js               Express app: security headers, CORS, rate limits, routes
 │   ├── config.js            Settings from .env
 │   ├── db/                  SQLite connection, schema.sql, demo data, seed / set-password scripts
-│   ├── lib/                 Pricing rules, order statuses, report calculations (same as the app's utils)
+│   ├── lib/                 Pricing rules, order statuses, notification wording, report calculations
 │   ├── middleware/          Login check (JWT), admin check, error responses
 │   ├── routes/              One file per area; validates the input with zod
-│   └── services/            Database queries and business rules
+│   └── services/            Database queries, business rules, Expo push delivery
 ├── test/api.test.js         End-to-end API tests
 └── deploy/nginx/            nginx site for perlas.ccshub.uk (Cloudflare Flexible SSL)
 ```

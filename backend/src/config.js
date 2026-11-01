@@ -8,6 +8,7 @@ process.env.TZ = process.env.TZ || 'Asia/Manila';
 
 const env = process.env;
 const isProduction = env.NODE_ENV === 'production';
+const isTest = env.NODE_ENV === 'test';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function jwtSecret() {
@@ -29,8 +30,21 @@ function dbPath(value = 'data/bugasan.db') {
   return value === ':memory:' ? value : path.resolve(rootDir, value);
 }
 
+// Push notifications go through Expo's service, so there are no Firebase/APNs keys to keep here.
+// An access token is only needed if you turn on "enhanced security" for push in your Expo account.
+function push() {
+  const enabled = env.PUSH_ENABLED ? env.PUSH_ENABLED !== 'false' : !isTest;
+  return {
+    enabled,
+    accessToken: env.EXPO_ACCESS_TOKEN || '',
+    sendUrl: env.EXPO_PUSH_URL || 'https://exp.host/--/api/v2/push/send',
+    receiptUrl: env.EXPO_RECEIPT_URL || 'https://exp.host/--/api/v2/push/getReceipts',
+  };
+}
+
 export const config = {
   isProduction,
+  isTest,
   port: Number(env.PORT) || 3000,
   // Behind nginx the API should only listen on localhost. In development it listens on all
   // interfaces so Expo Go on a phone can reach it over Wi-Fi.
@@ -40,4 +54,5 @@ export const config = {
   jwtExpiresIn: env.JWT_EXPIRES_IN || '30d',
   corsOrigins: env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',').map((o) => o.trim()) : '*',
   trustProxy: trustProxy(env.TRUST_PROXY),
+  push: push(),
 };

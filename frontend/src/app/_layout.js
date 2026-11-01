@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaInsetsContext, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppProvider } from '../context/AppContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { NetworkStatus, Toast } from '../components';
 import { colors } from '../theme';
 
@@ -15,6 +16,13 @@ function BelowStatusRow({ children }) {
   return <SafeAreaInsetsContext.Provider value={value}>{children}</SafeAreaInsetsContext.Provider>;
 }
 
+// Opens the screen behind a tapped notification. It has to sit inside <AppProvider>,
+// so it lives in its own component rather than in RootLayout.
+function PushListener() {
+  usePushNotifications();
+  return null;
+}
+
 // Root of the app. Three areas live under it:
 //   (auth)      -> login & register
 //   (customer)  -> shop, cart, orders, profile
@@ -24,6 +32,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AppProvider>
         <StatusBar style="dark" />
+        <PushListener />
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <NetworkStatus />
           <BelowStatusRow>

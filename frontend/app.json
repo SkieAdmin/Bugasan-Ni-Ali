@@ -7,9 +7,17 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "uk.ccshub.perlas.bugasanniali",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
     },
     "android": {
+      "package": "uk.ccshub.perlas.bugasanniali",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E3F1E9",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -25,8 +33,22 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#1E6B47",
+          "defaultChannel": "orders"
+        }
+      ]
     ],
-    "scheme": "bugasanniali"
+    "scheme": "bugasanniali",
+    "notification": {
+      "icon": "./assets/android-icon-monochrome.png",
+      "color": "#1E6B47",
+      "androidMode": "default",
+      "androidCollapsedTitle": "Bugasan ni Ali"
+    }
   }
 }

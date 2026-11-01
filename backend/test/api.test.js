@@ -6,9 +6,27 @@ import { once } from 'node:events';
 process.env.NODE_ENV = 'test';
 process.env.DB_PATH = ':memory:';
 process.env.JWT_SECRET = 'test-secret';
+process.env.PUSH_ENABLED = 'true'; // with a fake Expo below, so nothing leaves the machine
 
 const { app } = await import('../src/app.js');
 const { seedDemoData } = await import('../src/db/demoData.js');
+const { setPushTransport } = await import('../src/services/push.js');
+
+// Stands in for Expo's push service: every message lands in `sent`, tokens in `rejected` come
+// back as uninstalled, and `breakTransport` makes the whole service look unreachable.
+const sent = [];
+const rejected = new Set();
+let breakTransport = false;
+
+setPushTransport(async (messages) => {
+  if (breakTransport) throw new Error('Expo is down');
+  sent.push(...messages);
+  return messages.map((m) =>
+    rejected.has(m.to)
+      ? { status: 'error', message: 'not registered', details: { error: 'DeviceNotRegistered' } }
+      : { status: 'ok', id: `ticket-${sent.length}-${Math.random().toString(16).slice(2)}` }
+  );
+});
 
 let server;
 let base;
@@ -353,5 +371,170 @@ describe('wholesale, pricing and reports', () => {
     assert.ok(sales.summary.total > 0);
     assert.equal((await api('GET', '/reports/sales?days=0', { token: admin })).status, 400);
     assert.equal((await api('GET', '/reports/dashboard', { token: juan })).status, 403);
+  });
+});
+
+describe('push notifications', () => {
+  const token = (n) => `ExponentPushToken[test-device-${n}]`;
+
+  // The notifications are sent without the request waiting for them, so give them a moment.
+  async function outbox(count, tries = 60) {
+    for (let i = 0; i < tries && sent.length < count; i += 1) await new Promise((r) => setTimeout(r, 10));
+    return sent;
+  }
+
+  const settle = () => new Promise((r) => setTimeout(r, 120));
+
+  test('registers a device, moves it to the next user and unregisters it', async () => {
+    const bad = await api('POST', '/me/devices', { token: juan, body: { token: 'not-a-token' } });
+    assert.equal(bad.status, 400);
+
+    const added = await api('POST', '/me/devices', {
+      token: juan,
+      body: { token: token('juan'), platform: 'android', deviceName: 'Juan phone' },
+    });
+    assert.equal(added.status, 201);
+    assert.equal(added.data.device.token, token('juan'));
+
+    const devices = (await api('GET', '/me/devices', { token: juan })).data.devices;
+    assert.equal(devices.length, 1);
+    assert.equal(devices[0].deviceName, 'Juan phone');
+
+    // Maria logs in on the same phone: the token moves to her, so Juan stops getting her notifications.
+    await api('POST', '/me/devices', { token: maria, body: { token: token('juan'), platform: 'android' } });
+    assert.equal((await api('GET', '/me/devices', { token: juan })).data.devices.length, 0);
+    assert.equal((await api('GET', '/me/devices', { token: maria })).data.devices.length, 1);
+
+    // One account cannot unregister another account's device.
+    assert.equal((await api('DELETE', `/me/devices/${encodeURIComponent(token('juan'))}`, { token: juan })).status, 204);
+    assert.equal((await api('GET', '/me/devices', { token: maria })).data.devices.length, 1);
+
+    assert.equal((await api('DELETE', `/me/devices/${encodeURIComponent(token('juan'))}`, { token: maria })).status, 204);
+    assert.equal((await api('GET', '/me/devices', { token: maria })).data.devices.length, 0);
+  });
+
+  test('a new order notifies the store; every status notifies the customer', async () => {
+    await api('POST', '/me/devices', { token: admin, body: { token: token('admin'), platform: 'android' } });
+    await api('POST', '/me/devices', { token: juan, body: { token: token('juan2'), platform: 'ios' } });
+    sent.length = 0;
+
+    const placed = await api('POST', '/orders', { token: juan, body: order([{ productId: 'p1', unit: 'kilo', qty: 2 }]) });
+    assert.equal(placed.status, 201);
+    const orderId = placed.data.order.id;
+
+    await outbox(1);
+    assert.equal(sent.length, 1, 'only the store hears about a new order');
+    assert.equal(sent[0].to, token('admin'));
+    assert.match(sent[0].body, new RegExp(orderId));
+    assert.deepEqual(sent[0].data, { screen: 'admin-order', orderId });
+
+    sent.length = 0;
+    await api('POST', `/orders/${orderId}/advance`, { token: admin }); // confirmed
+    await outbox(1);
+    assert.equal(sent[0].to, token('juan2'), 'the customer is told, not the store');
+    assert.equal(sent[0].title, 'Confirmed');
+    assert.deepEqual(sent[0].data, { screen: 'order', orderId });
+
+    sent.length = 0;
+    await api('POST', `/orders/${orderId}/advance`, { token: admin }); // preparing
+    await api('POST', `/orders/${orderId}/advance`, { token: admin }); // out for delivery
+    await outbox(2);
+    assert.equal(sent.length, 2);
+    assert.ok(sent.every((m) => m.to === token('juan2')));
+
+    sent.length = 0;
+    await api('POST', `/orders/${orderId}/advance`, { token: admin }); // delivered
+    await outbox(1);
+    assert.match(sent[0].body, /delivered/i);
+  });
+
+  test('a customer cancelling tells the store; the store cancelling tells the customer', async () => {
+    const mine = await api('POST', '/orders', { token: juan, body: order([{ productId: 'p2', unit: 'kilo', qty: 1 }]) });
+    sent.length = 0;
+    await api('POST', `/orders/${mine.data.order.id}/cancel`, { token: juan });
+    await outbox(1);
+    assert.equal(sent[0].to, token('admin'));
+    assert.match(sent[0].body, /cancelled/i);
+
+    const theirs = await api('POST', '/orders', { token: juan, body: order([{ productId: 'p2', unit: 'kilo', qty: 1 }]) });
+    sent.length = 0;
+    await api('POST', `/orders/${theirs.data.order.id}/cancel`, { token: admin, body: { reason: 'Out of stock' } });
+    await outbox(1);
+    assert.equal(sent[0].to, token('juan2'));
+    assert.match(sent[0].body, /Out of stock/);
+  });
+
+  test('verifying a digital payment notifies the customer once', async () => {
+    const gcash = await api('POST', '/orders', {
+      token: juan,
+      body: order([{ productId: 'p1', unit: 'kilo', qty: 1 }], { paymentMethod: 'gcash', paymentRef: 'REF-123' }),
+    });
+    sent.length = 0;
+    await api('POST', `/orders/${gcash.data.order.id}/mark-paid`, { token: admin });
+    await outbox(1);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].title, 'Payment received');
+
+    // Tapping it again changes nothing, so nothing is sent.
+    await api('POST', `/orders/${gcash.data.order.id}/mark-paid`, { token: admin });
+    await settle();
+    assert.equal(sent.length, 1);
+  });
+
+  test('wholesale: the application notifies the store, the decision notifies the customer', async () => {
+    const lito = await login('lito@email.com', 'secret1');
+    await api('POST', '/me/devices', { token: lito, body: { token: token('lito'), platform: 'android' } });
+    sent.length = 0;
+
+    await api('POST', '/me/wholesale-application', { token: lito, body: { businessName: 'Lito Rice Trading' } });
+    await outbox(1);
+    assert.equal(sent[0].to, token('admin'));
+    assert.match(sent[0].body, /Lito Rice Trading/);
+
+    const me = (await api('GET', '/me', { token: lito })).data.user;
+    sent.length = 0;
+    await api('PATCH', `/customers/${me.id}`, { token: admin, body: { wholesaleStatus: 'approved' } });
+    await outbox(1);
+    assert.equal(sent[0].to, token('lito'));
+    assert.equal(sent[0].title, 'Wholesale approved');
+
+    // Approving an already approved customer changes nothing, so nobody is told twice.
+    sent.length = 0;
+    await api('PATCH', `/customers/${me.id}`, { token: admin, body: { wholesaleStatus: 'approved' } });
+    await settle();
+    assert.equal(sent.length, 0);
+  });
+
+  test('changing the password forgets that account devices', async () => {
+    const rosa = await login('rosa@email.com', '123456');
+    await api('POST', '/me/devices', { token: rosa, body: { token: token('rosa'), platform: 'android' } });
+    assert.equal((await api('GET', '/me/devices', { token: rosa })).data.devices.length, 1);
+
+    const changed = await api('POST', '/me/password', { token: rosa, body: { currentPassword: '123456', newPassword: 'rosa123' } });
+    assert.equal(changed.status, 200);
+    assert.equal((await api('GET', '/me/devices', { token: changed.data.token })).data.devices.length, 0);
+  });
+
+  test('a token Expo rejects is deleted, and the test notification says how many it reached', async () => {
+    await api('POST', '/me/devices', { token: maria, body: { token: token('gone'), platform: 'android' } });
+    rejected.add(token('gone'));
+    const res = await api('POST', '/me/devices/test', { token: maria });
+    assert.equal(res.status, 200);
+    assert.equal(res.data.sent, 0);
+    assert.equal((await api('GET', '/me/devices', { token: maria })).data.devices.length, 0, 'the dead token is forgotten');
+    rejected.clear();
+
+    await api('POST', '/me/devices', { token: maria, body: { token: token('maria'), platform: 'android' } });
+    const ok = await api('POST', '/me/devices/test', { token: maria });
+    assert.equal(ok.data.sent, 1);
+    assert.equal(sent.at(-1).title, 'Bugasan ni Ali');
+  });
+
+  test('push failures never break the request they came from', async () => {
+    breakTransport = true;
+    const placed = await api('POST', '/orders', { token: juan, body: order([{ productId: 'p1', unit: 'kilo', qty: 1 }]) });
+    assert.equal(placed.status, 201, 'the order is still placed when Expo is unreachable');
+    await settle();
+    breakTransport = false;
   });
 });

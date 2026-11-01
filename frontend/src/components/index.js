@@ -5,3 +5,4 @@ export * from './Charts';
 export * from './Receipt';
 export * from './ProductParts';
 export * from './NetworkStatus';
+export * from './PushSettings';

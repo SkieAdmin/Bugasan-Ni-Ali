@@ -2,7 +2,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useApp } from '../../../context/AppContext';
-import { Badge, Button, Card, InfoRow, ListRow, Screen, ScreenHeader, SectionHeader } from '../../../components';
+import { Badge, Button, Card, InfoRow, ListRow, PushSettings, Screen, ScreenHeader, SectionHeader } from '../../../components';
 import { initials } from '../../../utils/format';
 import { confirm } from '../../../utils/dialog';
 import { colors, spacing } from '../../../theme';
@@ -62,6 +62,9 @@ export default function MoreScreen() {
         />
         <ListRow icon="warehouse" title="Add Rice Variety" subtitle="Add a new product to the catalog" tone="neutral" onPress={() => router.push('/admin/product/new')} last />
       </Card>
+
+      <SectionHeader title="Notifications" />
+      <PushSettings />
 
       <SectionHeader title="Store information" />
       <Card>

@@ -155,3 +155,16 @@ CREATE TABLE IF NOT EXISTS stock_movements (
 );
 CREATE INDEX IF NOT EXISTS stock_movements_product ON stock_movements (product_id, at);
 CREATE INDEX IF NOT EXISTS stock_movements_at ON stock_movements (at);
+
+-- Expo push tokens: one row per device a user is logged in on. The token is the primary key,
+-- so logging in as someone else on the same phone moves the row instead of adding a second one
+-- (that device must not keep getting the previous user's notifications).
+CREATE TABLE IF NOT EXISTS device_tokens (
+  token        TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  platform     TEXT NOT NULL DEFAULT 'unknown' CHECK (platform IN ('ios', 'android', 'web', 'unknown')),
+  device_name  TEXT NOT NULL DEFAULT '',
+  created_at   TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS device_tokens_user ON device_tokens (user_id);

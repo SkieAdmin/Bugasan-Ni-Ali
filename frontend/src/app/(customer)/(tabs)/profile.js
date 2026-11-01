@@ -10,6 +10,7 @@ import {
   InfoRow,
   Input,
   ModalSheet,
+  PushSettings,
   Screen,
   ScreenHeader,
   SectionHeader,
@@ -134,6 +135,9 @@ export default function ProfileScreen() {
         <InfoRow icon="phone-outline" label="Mobile" value={currentUser.phone} />
         <InfoRow icon="map-marker-outline" label="Address" value={currentUser.address} />
       </Card>
+
+      <SectionHeader title="Notifications" />
+      <PushSettings />
 
       <SectionHeader title="Store" />
       <Card>
