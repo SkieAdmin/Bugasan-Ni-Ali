@@ -16,6 +16,11 @@ const EXPLAIN = {
   unsupported: 'This phone cannot receive notifications.',
 };
 
+// When the phone makes its own notifications (no push from the server in this build), they
+// are instant only while the app runs; Android decides when the closed app may check.
+const EXPLAIN_LOCAL =
+  'This phone gets a notification for every update: right away while the app is open, and within about 15 minutes when it is closed.';
+
 const ADMIN_EVENTS = ['New orders and cancellations', 'Wholesale applications', 'Rice that runs low on stock'];
 const CUSTOMER_EVENTS = ['Every step of your order', 'Payment confirmations', 'Your wholesale application result'];
 
@@ -51,7 +56,7 @@ export function PushSettings() {
         <Icon name={on ? 'bell-ring-outline' : 'bell-off-outline'} size={22} color={on ? colors.primary : colors.textMuted} />
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Push notifications</Text>
-          <Text style={styles.subtitle}>{EXPLAIN[push.status] || EXPLAIN.off}</Text>
+          <Text style={styles.subtitle}>{on && push.mode === 'local' ? EXPLAIN_LOCAL : EXPLAIN[push.status] || EXPLAIN.off}</Text>
         </View>
         <Switch
           value={on}

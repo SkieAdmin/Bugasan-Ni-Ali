@@ -135,9 +135,12 @@ npx expo run:android             # a development build, or `eas build` for a rel
 
 Android delivery goes through Firebase, so the project also needs a Firebase Android app with
 the package name `uk.ccshub.perlas.bugasanniali`: download its `google-services.json` into
-`frontend/`, point `android.googleServicesFile` at it in `app.json`, and upload the FCM V1
-service-account key with `eas credentials`. Until that is done the app simply reports that this
-phone cannot receive notifications — nothing else breaks.
+`frontend/` (`app.config.js` picks it up on the next build) and upload the FCM V1
+service-account key with `eas credentials`.
+
+Until that is done the app makes the same notifications itself from the data it syncs (see
+`frontend/README.md`, "Notifications"): instant while the app is open, roughly every 15 minutes
+when it is closed. Once a build gets a push token it switches to real push on its own.
 
 In the app, **Profile → Notifications** (customers) and **More → Notifications** (admin) show
 whether this phone is registered, switch it on or off, and send a test notification.

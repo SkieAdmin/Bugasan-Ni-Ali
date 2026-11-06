@@ -7,14 +7,43 @@
 // Notifications need a development build or a release build — remote push does not work in
 // Expo Go on Android. On a simulator there is no token either; both cases report `supported: false`
 // instead of failing, so the rest of the app carries on normally.
+//
+// Getting a token also needs an EAS project id and, on Android, Firebase (google-services.json)
+// in the build — see frontend/README.md. A build without them still notifies: the phone makes
+// the notifications itself from the data it syncs (src/notifications/alerts.js). The mode in use
+// is saved, so the background task knows it too:
+//   'remote' — the backend pushes to this phone
+//   'local'  — this phone makes its own notifications
+//   'off'    — the user switched them off in the app
 
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { api } from './client';
 
 export const ANDROID_CHANNEL = 'orders';
+
+const MODE_KEY = 'bugasan-ni-ali.push-mode';
+
+export async function loadPushMode() {
+  try {
+    return await AsyncStorage.getItem(MODE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+// `null` forgets it (logout): the next login asks again.
+export async function savePushMode(mode) {
+  try {
+    if (mode) await AsyncStorage.setItem(MODE_KEY, mode);
+    else await AsyncStorage.removeItem(MODE_KEY);
+  } catch {
+    // Storage unavailable: worked out again on the next start.
+  }
+}
 
 // What the app does with a notification that arrives while it is open.
 Notifications.setNotificationHandler({
@@ -46,15 +75,29 @@ function projectId() {
 
 // Android shows notifications through channels; this one is created before the first arrives
 // so it gets a sound and the store's green colour instead of the system default.
-async function ensureAndroidChannel() {
-  if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL, {
+let channelReady = null;
+function ensureAndroidChannel() {
+  if (Platform.OS !== 'android') return Promise.resolve();
+  channelReady ??= Notifications.setNotificationChannelAsync(ANDROID_CHANNEL, {
     name: 'Order updates',
     description: 'Order status, payments and wholesale applications.',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#1E6B47',
     sound: 'default',
+  }).catch((err) => {
+    channelReady = null; // try again next time
+    throw err;
+  });
+  return channelReady;
+}
+
+// Shows a notification right away, made on this phone (no server involved).
+export async function showLocalNotification({ title, body, data }) {
+  await ensureAndroidChannel();
+  return Notifications.scheduleNotificationAsync({
+    content: { title, body, data: { ...data, local: true }, sound: 'default', color: '#1E6B47' },
+    trigger: Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL } : null,
   });
 }
 
@@ -66,37 +109,39 @@ export async function permissionStatus() {
 }
 
 // Asks for permission if it has not been answered yet, then gets this phone's Expo token.
-// Resolves to { ok, token } or { ok: false, reason } — it never throws.
+// Resolves to { ok, token } or { ok: false, status, reason } — it never throws.
+// `status: 'granted'` with `ok: false` means the phone allows notifications but this build
+// cannot receive push from the server, so the app makes its own (see the top of this file).
 export async function getPushToken({ ask = true } = {}) {
   const unsupported = unsupportedReason();
   if (unsupported) return { ok: false, reason: unsupported, status: 'unsupported' };
 
+  let status;
   try {
     await ensureAndroidChannel();
 
-    let { status } = await Notifications.getPermissionsAsync();
+    ({ status } = await Notifications.getPermissionsAsync());
     if (status !== 'granted' && ask) ({ status } = await Notifications.requestPermissionsAsync());
-    if (status !== 'granted') {
-      return {
-        ok: false,
-        status,
-        reason: 'Notifications are turned off for this app. You can switch them on in the phone settings.',
-      };
-    }
+  } catch (err) {
+    return { ok: false, status: 'error', reason: err?.message || 'Could not set up notifications on this phone.' };
+  }
+  if (status !== 'granted') {
+    return {
+      ok: false,
+      status,
+      reason: 'Notifications are turned off for this app. You can switch them on in the phone settings.',
+    };
+  }
 
-    const id = projectId();
-    if (!id) {
-      return {
-        ok: false,
-        status,
-        reason: 'This build has no EAS project id yet. Run `npx eas init` in the frontend folder.',
-      };
-    }
+  const id = projectId();
+  if (!id) return { ok: false, status, reason: 'No EAS project id in this build (npx eas init).' };
 
+  try {
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId: id });
     return { ok: true, token: data, status };
   } catch (err) {
-    return { ok: false, status: 'error', reason: err?.message || 'Could not set up notifications on this phone.' };
+    // Usually Firebase is missing from the build (google-services.json).
+    return { ok: false, status, reason: err?.message || 'Could not get a push token.' };
   }
 }
 

@@ -54,8 +54,10 @@ export function usePushNotifications() {
     const tapped = Notifications.addNotificationResponseReceivedListener(open);
 
     // Arrived while the app is open: pull in the change behind it, without a spinner or
-    // an error toast — the banner is already on screen.
-    const received = Notifications.addNotificationReceivedListener(() => {
+    // an error toast — the banner is already on screen. Notifications the phone made itself
+    // (`data.local`) come from a sync that has just updated the screens.
+    const received = Notifications.addNotificationReceivedListener((notification) => {
+      if (notification?.request?.content?.data?.local) return;
       actions.refresh({ spinner: false, quiet: true });
     });
 
